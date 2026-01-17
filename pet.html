@@ -2,144 +2,182 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>픽셀 펫 하우스 V4</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>픽셀 펫 하우스 V6 (모바일 최적화)</title>
     <style>
         body {
             margin: 0; background-color: #222; color: white;
             font-family: 'Courier New', monospace;
             display: flex; height: 100vh; overflow: hidden; user-select: none;
+            -webkit-user-select: none;
         }
-        #main-container { display: flex; width: 100%; height: 100%; }
-        #editor-panel {
-            width: 400px; background-color: #333; padding: 15px;
-            display: flex; flex-direction: column; align-items: center;
-            border-right: 4px solid #111;
+
+        #main-container { position: relative; width: 100%; height: 100%; }
+
+        /* === 1. 게임 패널 (기본 화면) === */
+        #game-panel {
+            width: 100%; height: 100%;
+            display: flex; flex-direction: column;
+            background-color: #444;
         }
-        #game-panel { flex-grow: 1; display: flex; flex-direction: column; background-color: #444; position: relative; }
-        
-        /* 상단 바 */
+
+        /* 상단 스탯 바 */
         #stats-bar {
-            height: 60px; background: #222; display: flex; align-items: center; justify-content: space-around;
-            padding: 0 20px; border-bottom: 4px solid #111; font-weight: bold; position: relative;
+            height: 50px; background: #222; display: flex; align-items: center; justify-content: space-between;
+            padding: 0 10px; border-bottom: 2px solid #111; font-weight: bold; font-size: 12px;
         }
-        .stat-box { display: flex; align-items: center; gap: 10px; }
-        progress { width: 120px; height: 15px; border: 2px solid #555; background: #333; }
+        .stat-group { display: flex; gap: 5px; align-items: center; }
+        progress { width: 60px; height: 10px; border: 1px solid #555; background: #333; }
         progress::-webkit-progress-bar { background: #333; }
         progress::-webkit-progress-value { transition: width 0.5s; }
         #hunger-bar::-webkit-progress-value { background: #ff9f43; }
         #clean-bar::-webkit-progress-value { background: #54a0ff; }
 
-        /* 도움말 버튼 */
-        #btn-help {
-            background: #6c5ce7; color: white; border: 2px solid white;
-            border-radius: 50%; width: 30px; height: 30px; cursor: pointer; font-weight: bold;
-        }
-
-        /* 도움말 팝업 (매뉴얼) */
-        #help-modal {
-            display: none; /* 평소엔 숨김 */
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            width: 320px; background: white; color: #333;
-            border: 4px solid #6c5ce7; border-radius: 15px; padding: 20px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5); z-index: 100;
-        }
-        #help-modal h3 { margin-top: 0; text-align: center; color: #6c5ce7; }
-        .manual-item { margin-bottom: 10px; font-size: 14px; display: flex; align-items: center; gap: 10px; }
-        .manual-icon { font-size: 20px; width: 30px; text-align: center; }
-        #btn-close-help {
-            display: block; width: 100%; padding: 10px; margin-top: 20px;
-            background: #6c5ce7; color: white; border: none; font-weight: bold; cursor: pointer;
-        }
-
-        /* 방 */
+        /* 방 (반응형) */
         #room-container {
             flex-grow: 1; position: relative; background-color: #c7ecee;
             display: flex; justify-content: center; align-items: center;
+            overflow: hidden;
         }
         #roomCanvas {
+            /* 캔버스가 화면보다 크면 줄여서 보여줌 */
+            max-width: 95%; max-height: 95%;
             background-color: #f7f1e3; border: 4px solid #84817a;
             box-shadow: 0 10px 20px rgba(0,0,0,0.3);
             cursor: grab; image-rendering: pixelated;
         }
-        #roomCanvas:active { cursor: grabbing; }
 
-        /* 하단 버튼 */
+        /* 하단 행동 버튼 (중요: 잘리지 않게 설정) */
         #actions-bar {
-            height: 80px; background: #222; display: flex; align-items: center; justify-content: center;
-            gap: 20px; border-top: 4px solid #111;
+            height: 70px; min-height: 70px; /* 최소 높이 보장 */
+            background: #222; display: flex; align-items: center; justify-content: center;
+            gap: 10px; border-top: 2px solid #111;
+            padding: 0 10px;
         }
         .action-btn {
-            padding: 10px 20px; font-size: 16px; font-weight: bold;
-            border: 3px solid #111; border-radius: 10px; cursor: pointer;
-            background: #eee; color: #222; box-shadow: 0 4px 0 #111; transition: all 0.1s;
+            flex: 1; /* 버튼끼리 공간 균등 분할 */
+            padding: 12px 0; font-size: 14px; font-weight: bold;
+            border: 2px solid #111; border-radius: 8px; cursor: pointer;
+            background: #eee; color: #222; box-shadow: 0 3px 0 #111;
+            white-space: nowrap; /* 글자 줄바꿈 방지 */
         }
-        .action-btn:active { transform: translateY(4px); box-shadow: none; }
-        #btn-feed { background: #ff9f43; } #btn-buy { background: #ffd700; }
+        .action-btn:active { transform: translateY(3px); box-shadow: none; }
+        #btn-feed { background: #ff9f43; } #btn-buy { background: #ffd700; } #btn-draw-toggle { background: #a29bfe; }
 
-        /* 에디터 스타일 */
-        h2 { margin: 5px 0; color: #ffd700; }
+        /* === 2. 에디터 패널 (모바일 덮어쓰기 레이어) === */
+        #editor-panel {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: #333;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            z-index: 200; /* 게임 화면 위에 뜸 */
+            display: none; /* 기본적으로 숨김 */
+        }
+        /* 에디터가 활성화되면 표시 */
+        #editor-panel.active { display: flex; }
+
+        h2 { margin: 5px 0; color: #ffd700; font-size: 18px; }
+        
         #editorCanvas {
             background-color: white; border: 4px solid #000; cursor: crosshair; image-rendering: pixelated;
             background-image: linear-gradient(45deg, #eee 25%, transparent 25%), linear-gradient(-45deg, #eee 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #eee 75%), linear-gradient(-45deg, transparent 75%, #eee 75%); background-size: 10px 10px;
+            /* 에디터 캔버스 크기 고정 */
+            width: 300px !important; height: 300px !important;
         }
-        .toolbar { display: flex; gap: 5px; margin: 8px 0; background: #222; padding: 5px; border-radius: 8px; }
-        .tool-btn { background: #555; border: 2px solid #222; color: white; padding: 5px 10px; cursor: pointer; }
+
+        .toolbar { 
+            display: flex; gap: 5px; margin: 10px 0; background: #222; padding: 5px; border-radius: 8px; 
+            flex-wrap: wrap; justify-content: center; width: 90%;
+        }
+        .tool-btn { background: #555; border: 2px solid #222; color: white; padding: 8px 12px; cursor: pointer; border-radius: 4px; }
         .tool-btn.active { background: #ffd700; color: black; }
-        #palette { display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; margin: 8px 0; background: #222; padding: 5px; }
-        .color-btn { width: 25px; height: 25px; border: 2px solid #666; cursor: pointer; }
+        
+        .brush-control { display: flex; align-items: center; gap: 5px; font-size: 12px; color: #aaa; margin: 0 5px; }
+        input[type=range] { width: 60px; }
+
+        #palette { display: grid; grid-template-columns: repeat(8, 1fr); gap: 5px; margin: 10px 0; background: #222; padding: 8px; border-radius: 8px; }
+        .color-btn { width: 30px; height: 30px; border: 2px solid #666; cursor: pointer; }
         .color-btn.active { border: 2px solid white; transform: scale(1.1); }
-        .editor-controls { margin-top: 10px; display: flex; gap: 10px; }
+        
+        .editor-controls { margin-top: 15px; display: flex; gap: 10px; width: 90%; }
+        .editor-controls button { flex: 1; }
+
+        /* 도움말 팝업 */
+        #help-modal {
+            display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 80%; max-width: 300px; background: white; color: #333;
+            border: 4px solid #6c5ce7; border-radius: 15px; padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8); z-index: 300;
+        }
+        #help-modal h3 { margin-top: 0; text-align: center; color: #6c5ce7; }
+        .manual-item { margin-bottom: 8px; font-size: 13px; }
+        #btn-close-help { width: 100%; padding: 10px; background: #6c5ce7; color: white; border: none; border-radius: 5px; font-weight: bold; margin-top: 10px;}
+        #btn-help-toggle { background: #6c5ce7; color: white; border: none; border-radius: 50%; width: 24px; height: 24px; font-weight: bold;}
     </style>
 </head>
 <body>
 
 <div id="main-container">
+    
+    <div id="game-panel">
+        <div id="stats-bar">
+            <div class="stat-group">
+                🍖<progress id="hunger-bar" value="100" max="100"></progress>
+                ✨<progress id="clean-bar" value="100" max="100"></progress>
+            </div>
+            <div class="stat-group">
+                <span style="font-size: 16px;">💰<span id="money-display">0</span></span>
+                <button id="btn-help-toggle" onclick="toggleHelp()">?</button>
+            </div>
+        </div>
+
+        <div id="room-container">
+            <canvas id="roomCanvas" width="600" height="600"></canvas>
+        </div>
+
+        <div id="actions-bar">
+            <button class="action-btn" id="btn-draw-toggle" onclick="openEditor('PET')">🎨 펫 수정</button>
+            <button class="action-btn" id="btn-feed" onclick="spawnFood()">🍖 밥 준비</button>
+            <button class="action-btn" id="btn-buy" onclick="startFurnitureMode()">🪑 가구 (50G)</button>
+        </div>
+    </div>
+
     <div id="editor-panel">
         <h2 id="editor-title">🎨 펫 그리기</h2>
+        
         <div class="toolbar">
             <button class="tool-btn active" id="btn-pencil" onclick="setTool('pencil')">✏️</button>
             <button class="tool-btn" id="btn-eraser" onclick="setTool('eraser')">🧽</button>
             <button class="tool-btn" id="btn-bucket" onclick="setTool('bucket')">🪣</button>
-            <div style="width:1px; height:20px; background:#666; margin:0 5px;"></div>
+            <div class="brush-control">
+                <span>크기</span>
+                <input type="range" id="brushSize" min="1" max="4" value="1" oninput="updateBrushLabel(this.value)">
+                <span id="brushSizeLabel">1px</span>
+            </div>
             <button class="tool-btn" onclick="undo()">↩️</button>
             <button class="tool-btn" onclick="clearCanvas()">🗑️</button>
         </div>
-        <canvas id="editorCanvas" width="64" height="64" style="width: 320px; height: 320px;"></canvas>
+
+        <canvas id="editorCanvas" width="64" height="64"></canvas>
+        
         <div id="palette"></div>
+        
         <div class="editor-controls">
-            <button class="action-btn" id="btn-save-pet" onclick="savePet()" style="background:#ffd700;">✨ 탄생시키기</button>
-            <button class="action-btn" id="btn-save-furniture" onclick="saveFurniture()" style="display:none; background:#c7ecee;">🪑 가구 완성</button>
-            <button class="action-btn" id="btn-cancel-furniture" onclick="cancelFurnitureMode()" style="display:none; background:#ff6b6b;">취소</button>
+            <button class="action-btn" id="btn-save-pet" onclick="savePet()" style="background:#ffd700;">완료</button>
+            <button class="action-btn" id="btn-save-furniture" onclick="saveFurniture()" style="display:none; background:#c7ecee;">가구 완성</button>
+            <button class="action-btn" onclick="closeEditor()" style="background:#ff6b6b;">닫기</button>
         </div>
     </div>
 
-    <div id="game-panel">
-        <div id="help-modal">
-            <h3>📖 게임 설명서</h3>
-            <div class="manual-item"><span class="manual-icon">🍖</span> <strong>밥 주기:</strong> [밥 준비] 클릭 후 고기를 펫에게 드래그하세요.</div>
-            <div class="manual-item"><span class="manual-icon">🛁</span> <strong>씻기기:</strong> 펫을 잡아서(드래그) 오른쪽 아래 욕조에 넣으세요.</div>
-            <div class="manual-item"><span class="manual-icon">❤️</span> <strong>쓰다듬기:</strong> 하트가 떴을 때 펫을 클릭하면 돈을 법니다!</div>
-            <div class="manual-item"><span class="manual-icon">🪑</span> <strong>꾸미기:</strong> 돈을 모아 가구를 직접 그려서 배치하세요.</div>
-            <button id="btn-close-help" onclick="toggleHelp()">닫기</button>
-        </div>
-
-        <div id="stats-bar">
-            <div class="stat-box">🍖 <progress id="hunger-bar" value="100" max="100"></progress></div>
-            <div class="stat-box">✨ <progress id="clean-bar" value="100" max="100"></progress></div>
-            <div class="stat-box" style="font-size: 20px;">💰 <span id="money-display">0</span> G</div>
-            <button id="btn-help" onclick="toggleHelp()">❓</button>
-        </div>
-
-        <div id="room-container">
-            <canvas id="roomCanvas" width="600" height="400"></canvas>
-        </div>
-
-        <div id="actions-bar">
-            <button class="action-btn" id="btn-feed" onclick="spawnFood()">🍖 밥 준비 (드래그)</button>
-            <button class="action-btn" id="btn-buy" onclick="startFurnitureMode()">🪑 가구 만들기 (50G)</button>
-        </div>
+    <div id="help-modal">
+        <h3>📖 게임 설명서</h3>
+        <div class="manual-item">🍖 <strong>밥주기:</strong> [밥 준비] 클릭 → 고기를 드래그해서 펫 입에!</div>
+        <div class="manual-item">🛁 <strong>씻기기:</strong> 펫을 드래그해서 욕조(우측 하단)에 풍덩!</div>
+        <div class="manual-item">❤️ <strong>쓰다듬기:</strong> 펫 머리 위 하트를 클릭!</div>
+        <div class="manual-item">🪑 <strong>가구:</strong> 50G로 가구를 그려서 방 꾸미기.</div>
+        <div class="manual-item">🎨 <strong>수정:</strong> [펫 수정] 버튼으로 언제든 모습 변경 가능.</div>
+        <button id="btn-close-help" onclick="toggleHelp()">닫기</button>
     </div>
+
 </div>
 
 <script>
@@ -153,8 +191,8 @@
         furniture: []
     };
 
-    // 로컬 스토리지 로드
-    const savedData = localStorage.getItem('pixelPetV4');
+    // 로드
+    const savedData = localStorage.getItem('pixelPetV6');
     if (savedData) {
         gameState = JSON.parse(savedData);
         const now = Date.now();
@@ -166,13 +204,9 @@
     }
 
     let isFurnitureMode = false;
-    let grabbedObject = null;
-    let grabbedType = null;
-    let dragOffset = {x:0, y:0};
-    let spawnedFood = null;
-
-    // 욕조 위치 (고정)
-    const bathtub = { x: 480, y: 300, width: 100, height: 60 };
+    let grabbedObject = null, grabbedType = null, dragOffset = {x:0, y:0}, spawnedFood = null;
+    // 욕조 위치 (캔버스 600x600 기준 우측 하단)
+    const bathtub = { x: 450, y: 480, width: 120, height: 80 };
 
     // ==========================================
     //  1. 에디터 엔진
@@ -181,18 +215,33 @@
     const paletteColors = ['#000000', '#1D2B53', '#7E2553', '#008751', '#AB5236', '#5F574F', '#C2C3C7', '#FFF1E8', '#FF004D', '#FFA300', '#FFEC27', '#00E436', '#29ADFF', '#83769C', '#FF77A8', '#FFCCAA'];
     const editorCanvas = document.getElementById('editorCanvas');
     const ctxEditor = editorCanvas.getContext('2d', { willReadFrequently: true });
-    let selectedColor = paletteColors[0], isDrawing = false, currentTool = 'pencil', historyStack = [];
+    let selectedColor = paletteColors[0], isDrawing = false, currentTool = 'pencil', historyStack = [], brushSize = 1;
 
+    function updateBrushLabel(val) { brushSize = parseInt(val); document.getElementById('brushSizeLabel').innerText = val + 'px'; }
     function saveState() { historyStack.push(ctxEditor.getImageData(0, 0, CANVAS_SIZE, CANVAS_SIZE)); if(historyStack.length>20)historyStack.shift(); }
     function undo() { if(historyStack.length>0) ctxEditor.putImageData(historyStack.pop(),0,0); }
     function setTool(tool) { currentTool = tool; document.querySelectorAll('.tool-btn').forEach(btn=>btn.classList.remove('active')); document.getElementById('btn-'+tool).classList.add('active'); }
+    
     const paletteDiv = document.getElementById('palette');
     paletteColors.forEach((color,i)=>{ const btn=document.createElement('div'); btn.className='color-btn'+(i===0?' active':''); btn.style.backgroundColor=color; btn.onclick=()=>{if(currentTool==='eraser')setTool('pencil');document.querySelectorAll('.color-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');selectedColor=color;}; paletteDiv.appendChild(btn); });
     function clearCanvas() { saveState(); ctxEditor.clearRect(0,0,CANVAS_SIZE,CANVAS_SIZE); }
-    function getPos(e) { const r=editorCanvas.getBoundingClientRect(); const cx=e.touches?e.touches[0].clientX:e.clientX; const cy=e.touches?e.touches[0].clientY:e.clientY; return {x:Math.floor((cx-r.left)*(CANVAS_SIZE/r.width)),y:Math.floor((cy-r.top)*(CANVAS_SIZE/r.height))}; }
-    function drawPixel(e) { if(e.cancelable)e.preventDefault(); const {x,y}=getPos(e); if(currentTool==='eraser'||e.buttons===2)ctxEditor.clearRect(x,y,1,1); else if(currentTool==='pencil'){ctxEditor.fillStyle=selectedColor;ctxEditor.fillRect(x,y,1,1);} }
+    
+    function getPos(e) { 
+        const r=editorCanvas.getBoundingClientRect(); 
+        const cx=e.touches?e.touches[0].clientX:e.clientX; const cy=e.touches?e.touches[0].clientY:e.clientY; 
+        return {x:Math.floor((cx-r.left)*(CANVAS_SIZE/r.width)), y:Math.floor((cy-r.top)*(CANVAS_SIZE/r.height))}; 
+    }
+    
+    function drawPixel(e) { 
+        if(e.cancelable)e.preventDefault(); 
+        const {x,y}=getPos(e); 
+        if(currentTool==='eraser'||e.buttons===2) ctxEditor.clearRect(x, y, brushSize, brushSize); 
+        else if(currentTool==='pencil'){ ctxEditor.fillStyle=selectedColor; ctxEditor.fillRect(x, y, brushSize, brushSize); } 
+    }
+    
     function floodFill(sx,sy,fc){ const id=ctxEditor.getImageData(0,0,CANVAS_SIZE,CANVAS_SIZE),d=id.data,sp=(sy*CANVAS_SIZE+sx)*4,[sr,sg,sb,sa]=[d[sp],d[sp+1],d[sp+2],d[sp+3]]; const r=parseInt(fc.slice(1,3),16),g=parseInt(fc.slice(3,5),16),b=parseInt(fc.slice(5,7),16); if(sr===r&&sg===g&&sb===b&&sa===255)return; const st=[[sx,sy]]; while(st.length){const [x,y]=st.pop(),p=(y*CANVAS_SIZE+x)*4; if(x<0||x>=CANVAS_SIZE||y<0||y>=CANVAS_SIZE)continue; if(d[p]===sr&&d[p+1]===sg&&d[p+2]===sb&&d[p+3]===sa){d[p]=r;d[p+1]=g;d[p+2]=b;d[p+3]=255; st.push([x+1,y],[x-1,y],[x,y+1],[x,y-1]);}} ctxEditor.putImageData(id,0,0); }
     function startDraw(e) { saveState(); if(currentTool==='bucket')floodFill(getPos(e).x,getPos(e).y,selectedColor); else{isDrawing=true;drawPixel(e);} }
+    
     editorCanvas.addEventListener('mousedown', startDraw); editorCanvas.addEventListener('mousemove', e=>{if(isDrawing)drawPixel(e)}); window.addEventListener('mouseup', ()=>isDrawing=false); editorCanvas.addEventListener('contextmenu', e=>e.preventDefault());
     editorCanvas.addEventListener('touchstart', startDraw, {passive:false}); editorCanvas.addEventListener('touchmove', e=>{if(isDrawing)drawPixel(e)}, {passive:false}); window.addEventListener('touchend', ()=>isDrawing=false);
 
@@ -202,29 +251,49 @@
     const roomCanvas = document.getElementById('roomCanvas');
     const ctxRoom = roomCanvas.getContext('2d');
 
+    // 화면 전환 함수
+    function openEditor(mode) {
+        document.getElementById('editor-panel').classList.add('active');
+        if (mode === 'FURNITURE') {
+            isFurnitureMode = true;
+            document.getElementById('editor-title').innerText = '🪑 가구 그리기';
+            document.getElementById('btn-save-pet').style.display = 'none';
+            document.getElementById('btn-save-furniture').style.display = 'inline-block';
+        } else {
+            isFurnitureMode = false;
+            document.getElementById('editor-title').innerText = '🎨 펫 수정/생성';
+            document.getElementById('btn-save-pet').style.display = 'inline-block';
+            document.getElementById('btn-save-furniture').style.display = 'none';
+        }
+        clearCanvas();
+    }
+
+    function closeEditor() {
+        document.getElementById('editor-panel').classList.remove('active');
+    }
+
     function savePet() {
-        if (gameState.pet) { alert("이미 펫이 있습니다!"); return; }
         const dataURL = editorCanvas.toDataURL();
-        gameState.pet = {
-            imageSrc: dataURL, x: 250, y: 150, width: 100, height: 100, imgObj: new Image(),
-            state: 'IDLE', stateTimer: 100, targetX: 0, targetY: 0,
-            isHeartActive: false, heartTimer: 0 
-        };
-        gameState.pet.imgObj.src = dataURL;
-        clearCanvas(); saveGame();
+        if (gameState.pet) {
+            // 이미 있으면 외형만 변경
+            gameState.pet.imageSrc = dataURL;
+            gameState.pet.imgObj.src = dataURL;
+        } else {
+            // 신규 생성
+            gameState.pet = {
+                imageSrc: dataURL, x: 250, y: 150, width: 120, height: 120, imgObj: new Image(),
+                state: 'IDLE', stateTimer: 100, targetX: 0, targetY: 0, isHeartActive: false, heartTimer: 0 
+            };
+            gameState.pet.imgObj.src = dataURL;
+        }
+        closeEditor(); saveGame();
     }
 
     function updatePetAI() {
         const p = gameState.pet;
         if (!p || grabbedObject === p) return;
-
-        if (!p.isHeartActive && Math.random() < 0.002) { 
-            p.isHeartActive = true; p.heartTimer = 300; 
-        }
-        if (p.isHeartActive) {
-            p.heartTimer--; if (p.heartTimer <= 0) p.isHeartActive = false;
-        }
-
+        if (!p.isHeartActive && Math.random() < 0.002) { p.isHeartActive = true; p.heartTimer = 300; }
+        if (p.isHeartActive) { p.heartTimer--; if (p.heartTimer <= 0) p.isHeartActive = false; }
         p.stateTimer--;
         if (p.state === 'IDLE') {
             if (p.stateTimer <= 0) {
@@ -243,9 +312,7 @@
         } else if (p.state === 'WASHING') {
             if (p.stateTimer <= 0) {
                 p.state = 'IDLE';
-                if(gameState.stats.cleanliness < 100) {
-                    gameState.stats.cleanliness = 100; gameState.money += 30; statusEffect('🛁 목욕 끝! (+30G)'); saveGame();
-                }
+                if(gameState.stats.cleanliness < 100) { gameState.stats.cleanliness = 100; gameState.money += 30; statusEffect('🛁 목욕 끝! (+30G)'); saveGame(); }
             }
         }
     }
@@ -253,29 +320,37 @@
     // ==========================================
     //  3. 입력 및 로직
     // ==========================================
-    function spawnFood() { if(spawnedFood) return; spawnedFood = { x: 50, y: 320, width: 40, height: 40, emoji: '🍖' }; }
+    function spawnFood() { if(spawnedFood) return; spawnedFood = { x: 50, y: 450, width: 60, height: 60, emoji: '🍖' }; }
+
+    // 좌표 변환 (반응형 캔버스 대응)
+    function getGamePos(e) {
+        const r = roomCanvas.getBoundingClientRect();
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        
+        // 캔버스 내부 좌표로 스케일링
+        const scaleX = roomCanvas.width / r.width;
+        const scaleY = roomCanvas.height / r.height;
+        
+        return {
+            x: (clientX - r.left) * scaleX,
+            y: (clientY - r.top) * scaleY
+        };
+    }
 
     function handleInput(e) {
-        const r = roomCanvas.getBoundingClientRect();
-        const mx = (e.touches?e.touches[0].clientX:e.clientX) - r.left;
-        const my = (e.touches?e.touches[0].clientY:e.clientY) - r.top;
+        const {x: mx, y: my} = getGamePos(e);
 
         if (e.type === 'mousedown' || e.type === 'touchstart') {
             if(e.cancelable) e.preventDefault();
-            if (spawnedFood && isHit(mx, my, spawnedFood)) {
-                grabbedObject = spawnedFood; grabbedType = 'FOOD'; dragOffset = {x: mx - spawnedFood.x, y: my - spawnedFood.y}; return;
-            }
+            if (spawnedFood && isHit(mx, my, spawnedFood)) { grabbedObject = spawnedFood; grabbedType = 'FOOD'; dragOffset = {x: mx - spawnedFood.x, y: my - spawnedFood.y}; return; }
             if (gameState.pet && isHit(mx, my, gameState.pet)) {
-                if (gameState.pet.isHeartActive) {
-                    gameState.pet.isHeartActive = false; gameState.money += 50; statusEffect('❤️ 사랑해! (+50G)'); saveGame(); return;
-                }
+                if (gameState.pet.isHeartActive) { gameState.pet.isHeartActive = false; gameState.money += 50; statusEffect('❤️ 사랑해! (+50G)'); saveGame(); return; }
                 grabbedObject = gameState.pet; grabbedType = 'PET'; dragOffset = {x: mx - gameState.pet.x, y: my - gameState.pet.y}; gameState.pet.state = 'DRAGGED'; return;
             }
             for (let i = gameState.furniture.length - 1; i >= 0; i--) {
                 const f = gameState.furniture[i];
-                if (isHit(mx, my, f)) {
-                    grabbedObject = f; grabbedType = 'FURNITURE'; dragOffset = {x: mx - f.x, y: my - f.y}; gameState.furniture.push(gameState.furniture.splice(i, 1)[0]); return;
-                }
+                if (isHit(mx, my, f)) { grabbedObject = f; grabbedType = 'FURNITURE'; dragOffset = {x: mx - f.x, y: my - f.y}; gameState.furniture.push(gameState.furniture.splice(i, 1)[0]); return; }
             }
         } else if (e.type === 'mousemove' || e.type === 'touchmove') {
             if (grabbedObject) { if(e.cancelable) e.preventDefault(); grabbedObject.x = mx - dragOffset.x; grabbedObject.y = my - dragOffset.y; }
@@ -286,7 +361,7 @@
                     else { statusEffect('배불러요!'); }
                 }
                 if (grabbedType === 'PET' && checkCollision(grabbedObject, bathtub)) {
-                    gameState.pet.state = 'WASHING'; gameState.pet.stateTimer = 120; gameState.pet.x = bathtub.x + 10; gameState.pet.y = bathtub.y - 15;
+                    gameState.pet.state = 'WASHING'; gameState.pet.stateTimer = 120; gameState.pet.x = bathtub.x + 20; gameState.pet.y = bathtub.y - 20;
                 } else if (grabbedType === 'PET') { gameState.pet.state = 'IDLE'; }
                 grabbedObject = null; grabbedType = null; saveGame();
             }
@@ -295,110 +370,53 @@
 
     function isHit(mx, my, obj) { return mx > obj.x && mx < obj.x + obj.width && my > obj.y && my < obj.y + obj.height; }
     function checkCollision(obj1, obj2) { return obj1.x < obj2.x + obj2.width && obj1.x + obj1.width > obj2.x && obj1.y < obj2.y + obj2.height && obj1.y + obj1.height > obj2.y; }
-
+    
     roomCanvas.addEventListener('mousedown', handleInput); roomCanvas.addEventListener('mousemove', handleInput); window.addEventListener('mouseup', handleInput);
     roomCanvas.addEventListener('touchstart', handleInput, {passive:false}); roomCanvas.addEventListener('touchmove', handleInput, {passive:false}); window.addEventListener('touchend', handleInput);
 
     // ==========================================
     //  4. UI 및 렌더링
     // ==========================================
-    function startFurnitureMode() { if(gameState.money<50){alert("돈 부족");return;} if(!gameState.pet){alert("펫 먼저!");return;} gameState.money-=50; updateUI(); isFurnitureMode=true; document.getElementById('editor-title').innerText='🪑 가구 모드'; document.getElementById('btn-save-pet').style.display='none'; document.getElementById('btn-save-furniture').style.display='inline-block'; document.getElementById('btn-cancel-furniture').style.display='inline-block'; clearCanvas(); }
-    function saveFurniture(){ const d=editorCanvas.toDataURL(); gameState.furniture.push({imageSrc:d, x:200, y:200, width:80, height:80, imgObj:new Image()}); gameState.furniture[gameState.furniture.length-1].imgObj.src=d; alert("가구 생성!"); cancelFurnitureMode(); }
-    function cancelFurnitureMode(){ isFurnitureMode=false; document.getElementById('editor-title').innerText='🎨 펫 그리기'; document.getElementById('btn-save-pet').style.display='inline-block'; document.getElementById('btn-save-furniture').style.display='none'; document.getElementById('btn-cancel-furniture').style.display='none'; clearCanvas(); saveGame(); }
+    function startFurnitureMode() { if(gameState.money<50){alert("돈 부족");return;} if(!gameState.pet){alert("펫 먼저!");return;} gameState.money-=50; updateUI(); openEditor('FURNITURE'); }
+    function saveFurniture(){ const d=editorCanvas.toDataURL(); gameState.furniture.push({imageSrc:d, x:200, y:200, width:100, height:100, imgObj:new Image()}); gameState.furniture[gameState.furniture.length-1].imgObj.src=d; alert("가구 생성!"); closeEditor(); saveGame(); }
     
-    function statusEffect(msg) { const ef=document.createElement('div'); ef.innerText=msg; ef.style.position='absolute'; ef.style.left=(gameState.pet.x+40)+'px'; ef.style.top=(gameState.pet.y)+'px'; ef.style.color='#fff'; ef.style.fontWeight='bold'; ef.style.textShadow='2px 2px 0 #000'; ef.style.transition='1s'; document.getElementById('room-container').appendChild(ef); setTimeout(()=>{ef.style.transform='translateY(-50px)';ef.style.opacity=0;},50); setTimeout(()=>ef.remove(),1050); }
-    function saveGame(){ gameState.stats.lastUpdated=Date.now(); localStorage.setItem('pixelPetV4',JSON.stringify(gameState)); updateUI(); }
+    function statusEffect(msg) { const ef=document.createElement('div'); ef.innerText=msg; ef.style.position='absolute'; ef.style.left=(gameState.pet.x/600*100)+'%'; ef.style.top=(gameState.pet.y/600*100)+'%'; ef.style.color='#fff'; ef.style.fontWeight='bold'; ef.style.textShadow='2px 2px 0 #000'; ef.style.transition='1s'; document.getElementById('room-container').appendChild(ef); setTimeout(()=>{ef.style.transform='translateY(-50px)';ef.style.opacity=0;},50); setTimeout(()=>ef.remove(),1050); }
+    function saveGame(){ gameState.stats.lastUpdated=Date.now(); localStorage.setItem('pixelPetV6',JSON.stringify(gameState)); updateUI(); }
     function updateUI(){ document.getElementById('hunger-bar').value=gameState.stats.hunger; document.getElementById('clean-bar').value=gameState.stats.cleanliness; document.getElementById('money-display').innerText=gameState.money; }
-    
-    function toggleHelp() {
-        const modal = document.getElementById('help-modal');
-        modal.style.display = (modal.style.display === 'block') ? 'none' : 'block';
-    }
+    function toggleHelp() { const m = document.getElementById('help-modal'); m.style.display = (m.style.display === 'block') ? 'none' : 'block'; }
 
-    // 이미지 로드
     if (gameState.pet) { gameState.pet.imgObj = new Image(); gameState.pet.imgObj.src = gameState.pet.imageSrc; }
     gameState.furniture.forEach(f => { f.imgObj = new Image(); f.imgObj.src = f.imageSrc; });
+    
+    // 펫 없으면 에디터 자동 열기
+    if (!gameState.pet) openEditor('PET');
 
-    // 처음 실행 시 펫이 없으면 도움말 띄우기
-    if (!gameState.pet) toggleHelp();
-
-    // 직접 그리는 욕조 함수
     function drawBathtub(ctx, x, y, w, h) {
-        // 다리
-        ctx.fillStyle = '#b2bec3';
-        ctx.fillRect(x + 10, y + h - 5, 10, 5);
-        ctx.fillRect(x + w - 20, y + h - 5, 10, 5);
-        
-        // 본체 (도기)
-        ctx.fillStyle = '#f5f6fa'; // 흰색에 가까운 회색
-        ctx.fillRect(x, y, w, h - 5);
-        ctx.strokeStyle = '#dcdde1';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(x, y, w, h - 5);
-
-        // 물
-        ctx.fillStyle = '#4bcffa'; // 밝은 파랑
-        ctx.fillRect(x + 5, y + 10, w - 10, h - 25);
-        
-        // 거품 (장식)
-        ctx.fillStyle = 'white';
-        ctx.beginPath(); ctx.arc(x + 15, y + 15, 3, 0, Math.PI*2); ctx.fill();
-        ctx.beginPath(); ctx.arc(x + 30, y + 20, 2, 0, Math.PI*2); ctx.fill();
-        ctx.beginPath(); ctx.arc(x + w - 15, y + 12, 3, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#b2bec3'; ctx.fillRect(x + 10, y + h - 5, 10, 5); ctx.fillRect(x + w - 20, y + h - 5, 10, 5);
+        ctx.fillStyle = '#f5f6fa'; ctx.fillRect(x, y, w, h - 5); ctx.strokeStyle = '#dcdde1'; ctx.lineWidth = 2; ctx.strokeRect(x, y, w, h - 5);
+        ctx.fillStyle = '#4bcffa'; ctx.fillRect(x + 5, y + 10, w - 10, h - 25);
+        ctx.fillStyle = 'white'; ctx.beginPath(); ctx.arc(x + 15, y + 15, 3, 0, Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(x + 30, y + 20, 2, 0, Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(x + w - 15, y + 12, 3, 0, Math.PI*2); ctx.fill();
     }
 
     function gameLoop() {
         ctxRoom.clearRect(0, 0, roomCanvas.width, roomCanvas.height);
-
-        if (gameState.pet) {
-            gameState.stats.hunger = Math.max(0, gameState.stats.hunger - 0.01);
-            gameState.stats.cleanliness = Math.max(0, gameState.stats.cleanliness - 0.005);
-            updateUI();
-            updatePetAI();
-        }
-
-        // 1. 욕조 그리기 (코드로 그림)
+        if (gameState.pet) { gameState.stats.hunger = Math.max(0, gameState.stats.hunger - 0.01); gameState.stats.cleanliness = Math.max(0, gameState.stats.cleanliness - 0.005); updateUI(); updatePetAI(); }
         drawBathtub(ctxRoom, bathtub.x, bathtub.y, bathtub.width, bathtub.height);
-
-        // 2. 가구 그리기
         gameState.furniture.forEach(f => ctxRoom.drawImage(f.imgObj, f.x, f.y, f.width, f.height));
-
-        // 3. 펫 그리기
         if (gameState.pet) {
             const p = gameState.pet;
-            if (p.state !== 'DRAGGED' && p.state !== 'WASHING') {
-                ctxRoom.fillStyle = 'rgba(0,0,0,0.2)'; ctxRoom.beginPath();
-                ctxRoom.ellipse(p.x + p.width/2, p.y + p.height-5, p.width/3, 8, 0, 0, Math.PI*2); ctxRoom.fill();
-            }
-            
-            if (p.state === 'WASHING') {
-                const shake = Math.sin(Date.now() / 100) * 3;
-                ctxRoom.drawImage(p.imgObj, p.x + shake, p.y + 10, p.width, p.height); // 물속에 잠긴 느낌
-                // 비누 거품 파티클
-                if(Math.random() < 0.1) {
-                    ctxRoom.fillStyle = 'white'; ctxRoom.beginPath();
-                    ctxRoom.arc(p.x + Math.random()*p.width, p.y + Math.random()*p.height, Math.random()*4, 0, Math.PI*2); ctxRoom.fill();
-                }
-            } else {
-                ctxRoom.drawImage(p.imgObj, p.x, p.y, p.width, p.height);
-            }
-
+            if (p.state !== 'DRAGGED' && p.state !== 'WASHING') { ctxRoom.fillStyle = 'rgba(0,0,0,0.2)'; ctxRoom.beginPath(); ctxRoom.ellipse(p.x + p.width/2, p.y + p.height-5, p.width/3, 8, 0, 0, Math.PI*2); ctxRoom.fill(); }
+            if (p.state === 'WASHING') { const shake = Math.sin(Date.now() / 100) * 3; ctxRoom.drawImage(p.imgObj, p.x + shake, p.y + 10, p.width, p.height); if(Math.random() < 0.1) { ctxRoom.fillStyle = 'white'; ctxRoom.beginPath(); ctxRoom.arc(p.x + Math.random()*p.width, p.y + Math.random()*p.height, Math.random()*4, 0, Math.PI*2); ctxRoom.fill(); } } 
+            else { ctxRoom.drawImage(p.imgObj, p.x, p.y, p.width, p.height); }
             ctxRoom.font = "24px serif";
             if (p.isHeartActive) ctxRoom.fillText('❤️', p.x + p.width/2 - 10, p.y - 10);
             else if (p.state === 'SLEEP') ctxRoom.fillText('💤', p.x + p.width, p.y);
             else if (gameState.stats.hunger < 30) ctxRoom.fillText('🍖', p.x + p.width, p.y);
             else if (gameState.stats.cleanliness < 30) ctxRoom.fillText('💩', p.x + p.width, p.y);
         }
-
-        // 4. 음식 그리기
-        if (spawnedFood) {
-            ctxRoom.font = "40px serif";
-            ctxRoom.fillText(spawnedFood.emoji, spawnedFood.x, spawnedFood.y + 35);
-        }
-
+        if (spawnedFood) { ctxRoom.font = "60px serif"; ctxRoom.fillText(spawnedFood.emoji, spawnedFood.x, spawnedFood.y + 50); }
         requestAnimationFrame(gameLoop);
     }
-
     updateUI(); gameLoop(); setInterval(saveGame, 5000);
 </script>
 </body>
