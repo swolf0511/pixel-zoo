@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>픽셀 펫 하우스 V6 (모바일 최적화)</title>
+    <title>픽셀 펫 하우스 완전판</title>
     <style>
         body {
             margin: 0; background-color: #222; color: white;
@@ -47,24 +47,26 @@
             cursor: grab; image-rendering: pixelated;
         }
 
-        /* 하단 행동 버튼 (중요: 잘리지 않게 설정) */
+        /* 하단 행동 버튼 (잘리지 않게 고정) */
         #actions-bar {
             height: 70px; min-height: 70px; /* 최소 높이 보장 */
             background: #222; display: flex; align-items: center; justify-content: center;
-            gap: 10px; border-top: 2px solid #111;
-            padding: 0 10px;
+            gap: 8px; border-top: 2px solid #111;
+            padding: 0 10px; box-sizing: border-box; /* 패딩 포함 크기 계산 */
         }
         .action-btn {
             flex: 1; /* 버튼끼리 공간 균등 분할 */
-            padding: 12px 0; font-size: 14px; font-weight: bold;
+            padding: 12px 0; font-size: 13px; font-weight: bold;
             border: 2px solid #111; border-radius: 8px; cursor: pointer;
             background: #eee; color: #222; box-shadow: 0 3px 0 #111;
-            white-space: nowrap; /* 글자 줄바꿈 방지 */
+            white-space: nowrap; text-align: center;
         }
         .action-btn:active { transform: translateY(3px); box-shadow: none; }
-        #btn-feed { background: #ff9f43; } #btn-buy { background: #ffd700; } #btn-draw-toggle { background: #a29bfe; }
+        #btn-feed { background: #ff9f43; } 
+        #btn-buy { background: #ffd700; } 
+        #btn-draw-toggle { background: #a29bfe; }
 
-        /* === 2. 에디터 패널 (모바일 덮어쓰기 레이어) === */
+        /* === 2. 에디터 패널 (팝업 레이어) === */
         #editor-panel {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             background-color: #333;
@@ -72,7 +74,6 @@
             z-index: 200; /* 게임 화면 위에 뜸 */
             display: none; /* 기본적으로 숨김 */
         }
-        /* 에디터가 활성화되면 표시 */
         #editor-panel.active { display: flex; }
 
         h2 { margin: 5px 0; color: #ffd700; font-size: 18px; }
@@ -84,15 +85,16 @@
             width: 300px !important; height: 300px !important;
         }
 
+        /* 툴바 (붓 크기 조절 포함) */
         .toolbar { 
             display: flex; gap: 5px; margin: 10px 0; background: #222; padding: 5px; border-radius: 8px; 
-            flex-wrap: wrap; justify-content: center; width: 90%;
+            flex-wrap: wrap; justify-content: center; width: 90%; align-items: center;
         }
         .tool-btn { background: #555; border: 2px solid #222; color: white; padding: 8px 12px; cursor: pointer; border-radius: 4px; }
         .tool-btn.active { background: #ffd700; color: black; }
         
         .brush-control { display: flex; align-items: center; gap: 5px; font-size: 12px; color: #aaa; margin: 0 5px; }
-        input[type=range] { width: 60px; }
+        input[type=range] { width: 60px; accent-color: #ffd700; }
 
         #palette { display: grid; grid-template-columns: repeat(8, 1fr); gap: 5px; margin: 10px 0; background: #222; padding: 8px; border-radius: 8px; }
         .color-btn { width: 30px; height: 30px; border: 2px solid #666; cursor: pointer; }
@@ -137,7 +139,7 @@
         <div id="actions-bar">
             <button class="action-btn" id="btn-draw-toggle" onclick="openEditor('PET')">🎨 펫 수정</button>
             <button class="action-btn" id="btn-feed" onclick="spawnFood()">🍖 밥 준비</button>
-            <button class="action-btn" id="btn-buy" onclick="startFurnitureMode()">🪑 가구 (50G)</button>
+            <button class="action-btn" id="btn-buy" onclick="startFurnitureMode()">🪑 가구(50G)</button>
         </div>
     </div>
 
@@ -148,11 +150,13 @@
             <button class="tool-btn active" id="btn-pencil" onclick="setTool('pencil')">✏️</button>
             <button class="tool-btn" id="btn-eraser" onclick="setTool('eraser')">🧽</button>
             <button class="tool-btn" id="btn-bucket" onclick="setTool('bucket')">🪣</button>
+            
             <div class="brush-control">
                 <span>크기</span>
                 <input type="range" id="brushSize" min="1" max="4" value="1" oninput="updateBrushLabel(this.value)">
                 <span id="brushSizeLabel">1px</span>
             </div>
+
             <button class="tool-btn" onclick="undo()">↩️</button>
             <button class="tool-btn" onclick="clearCanvas()">🗑️</button>
         </div>
@@ -172,7 +176,7 @@
         <h3>📖 게임 설명서</h3>
         <div class="manual-item">🍖 <strong>밥주기:</strong> [밥 준비] 클릭 → 고기를 드래그해서 펫 입에!</div>
         <div class="manual-item">🛁 <strong>씻기기:</strong> 펫을 드래그해서 욕조(우측 하단)에 풍덩!</div>
-        <div class="manual-item">❤️ <strong>쓰다듬기:</strong> 펫 머리 위 하트를 클릭!</div>
+        <div class="manual-item">❤️ <strong>쓰다듬기:</strong> 하트가 떴을 때 펫을 클릭하면 돈을 법니다!</div>
         <div class="manual-item">🪑 <strong>가구:</strong> 50G로 가구를 그려서 방 꾸미기.</div>
         <div class="manual-item">🎨 <strong>수정:</strong> [펫 수정] 버튼으로 언제든 모습 변경 가능.</div>
         <button id="btn-close-help" onclick="toggleHelp()">닫기</button>
@@ -191,8 +195,8 @@
         furniture: []
     };
 
-    // 로드
-    const savedData = localStorage.getItem('pixelPetV6');
+    // 로컬스토리지 로드 (V6 버전 사용)
+    const savedData = localStorage.getItem('pixelPetFinal');
     if (savedData) {
         gameState = JSON.parse(savedData);
         const now = Date.now();
@@ -209,7 +213,7 @@
     const bathtub = { x: 450, y: 480, width: 120, height: 80 };
 
     // ==========================================
-    //  1. 에디터 엔진
+    //  1. 에디터 엔진 (붓 크기 조절 포함)
     // ==========================================
     const CANVAS_SIZE = 64;
     const paletteColors = ['#000000', '#1D2B53', '#7E2553', '#008751', '#AB5236', '#5F574F', '#C2C3C7', '#FFF1E8', '#FF004D', '#FFA300', '#FFEC27', '#00E436', '#29ADFF', '#83769C', '#FF77A8', '#FFCCAA'];
@@ -322,20 +326,13 @@
     // ==========================================
     function spawnFood() { if(spawnedFood) return; spawnedFood = { x: 50, y: 450, width: 60, height: 60, emoji: '🍖' }; }
 
-    // 좌표 변환 (반응형 캔버스 대응)
     function getGamePos(e) {
         const r = roomCanvas.getBoundingClientRect();
         const clientX = e.touches ? e.touches[0].clientX : e.clientX;
         const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-        
-        // 캔버스 내부 좌표로 스케일링
         const scaleX = roomCanvas.width / r.width;
         const scaleY = roomCanvas.height / r.height;
-        
-        return {
-            x: (clientX - r.left) * scaleX,
-            y: (clientY - r.top) * scaleY
-        };
+        return { x: (clientX - r.left) * scaleX, y: (clientY - r.top) * scaleY };
     }
 
     function handleInput(e) {
@@ -381,7 +378,7 @@
     function saveFurniture(){ const d=editorCanvas.toDataURL(); gameState.furniture.push({imageSrc:d, x:200, y:200, width:100, height:100, imgObj:new Image()}); gameState.furniture[gameState.furniture.length-1].imgObj.src=d; alert("가구 생성!"); closeEditor(); saveGame(); }
     
     function statusEffect(msg) { const ef=document.createElement('div'); ef.innerText=msg; ef.style.position='absolute'; ef.style.left=(gameState.pet.x/600*100)+'%'; ef.style.top=(gameState.pet.y/600*100)+'%'; ef.style.color='#fff'; ef.style.fontWeight='bold'; ef.style.textShadow='2px 2px 0 #000'; ef.style.transition='1s'; document.getElementById('room-container').appendChild(ef); setTimeout(()=>{ef.style.transform='translateY(-50px)';ef.style.opacity=0;},50); setTimeout(()=>ef.remove(),1050); }
-    function saveGame(){ gameState.stats.lastUpdated=Date.now(); localStorage.setItem('pixelPetV6',JSON.stringify(gameState)); updateUI(); }
+    function saveGame(){ gameState.stats.lastUpdated=Date.now(); localStorage.setItem('pixelPetFinal',JSON.stringify(gameState)); updateUI(); }
     function updateUI(){ document.getElementById('hunger-bar').value=gameState.stats.hunger; document.getElementById('clean-bar').value=gameState.stats.cleanliness; document.getElementById('money-display').innerText=gameState.money; }
     function toggleHelp() { const m = document.getElementById('help-modal'); m.style.display = (m.style.display === 'block') ? 'none' : 'block'; }
 
