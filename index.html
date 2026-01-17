@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>직접 그리는 픽셀 동물원</title>
+    <style>
+        body {
+            margin: 0;
+            background-color: #2d2d2d;
+            color: white;
+            font-family: 'Courier New', monospace;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        
+        .container {
+            display: flex;
+            width: 100%;
+            height: 100%;
+        }
+
+        #editor-panel {
+            width: 420px;
+            background-color: #444;
+            padding: 10px;
+            display: flex; flex-direction: column; align-items: center;
+            border-right: 4px solid #111;
+            box-shadow: 5px 0 15px rgba(0,0,0,0.5);
+            z-index: 10;
+        }
+
+        #zoo-panel {
+            flex-grow: 1;
+            position: relative;
+            background-color: #5D9E53;
+            background-image: 
+                linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px);
+            background-size: 16px 16px; 
+            cursor: crosshair;
+            touch-action: none;
+        }
+
+        h2 { margin: 5px 0; color: #ffd700; text-shadow: 2px 2px #000; font-size: 18px; }
+
+        #editorCanvas {
+            background-color: white;
+            border: 4px solid #000;
+            cursor: crosshair;
+            image-rendering: pixelated;
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+            background-image: 
+                linear-gradient(45deg, #eee 25%, transparent 25%), 
+                linear-gradient(-45deg, #eee 25%, transparent 25%), 
+                linear-gradient(45deg, transparent 75%, #eee 75%), 
+                linear-gradient(-45deg, transparent 75%, #eee 75%);
+            background-size: 10px 10px;
+            touch-action: none;
+        }
+
+        .toolbar {
+            display: flex; gap: 5px; margin: 8px 0; align-items: center;
+            background: #333; padding: 5px; border-radius: 8px; width: 95%; justify-content: center;
+        }
+        .tool-btn {
+            background: #555; border: 2px solid #222; color: white;
+            padding: 8px 10px; cursor: pointer; border-radius: 4px; font-size: 14px;
+        }
+        .tool-btn.active { background: #ffd700; color: black; border-color: white; font-weight: bold; }
+
+        input[type=range] { width: 60px; }
+        .label { font-size: 12px; margin-left: 5px; }
+
+        #palette {
+            display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px;
+            margin: 8px 0; background: #222; padding: 5px; border-radius: 5px;
+        }
+        .color-btn {
+            width: 28px; height: 28px; border: 2px solid #666; cursor: pointer;
+        }
+        .color-btn.active { border: 2px solid white; transform: scale(1.1); z-index: 1; }
+
+        .controls { width: 100%; display: flex; gap: 5px; justify-content: center; margin-top: 5px; flex-wrap: wrap; }
+        input[type="text"] { width: 50%; padding: 8px; font-weight: bold; }
+        
+        button.action-btn {
+            padding: 10px 12px; background: #ffd700; color: #000; border: none;
+            font-weight: bold; cursor: pointer; box-shadow: 2px 2px 0 #000; border-radius: 5px;
+        }
+        button.action-btn:active { transform: translate(1px, 1px); box-shadow: none; }
+        button.clear-btn { background: #ff6b6b; color: white; }
+        button.undo-btn { background: #555; color: white; }
+
+        @media (max-width: 768px) {
+            .container { flex-direction: column; }
+            #editor-panel { width: 100%; height: auto; border-right: none; border-bottom: 4px solid #111; box-sizing: border-box; }
+            #editorCanvas { width: 280px !important; height: 280px !important; }
+            #zoo-panel { width: 100%; height: 50vh; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div id="editor-panel">
+        <h2>🎨 픽셀 스튜디오</h2>
+        
+        <div class="toolbar">
+            <button class="tool-btn active" id="btn-pencil" onclick="setTool('pencil')">✏️ 펜</button>
+            <button class="tool-btn" id="btn-eraser" onclick="setTool('eraser')">🧽 지우개</button>
+            <button class="tool-btn" id="btn-bucket" onclick="setTool('bucket')">🪣 채우기</button>
+            
+            <div style="width: 1px; height: 20px; background: #666; margin: 0 5px;"></div>
+            
+            <span style="font-size:12px;">크기:</span>
+            <input type="range" id="brushSize" min="1" max="4" value="1" oninput="updateBrushLabel(this.value)">
+            <span id="brushSizeLabel" class="label">1px</span>
+        </div>
+
+        <canvas id="editorCanvas" width="64" height="64" style="width: 384px; height: 384px;"></canvas>
+        
+        <div id="palette"></div>
+
+        <div class="controls">
+            <input type="text" id="animalName" placeholder="이름 입력">
+            <button class="action-btn" onclick="spawnAnimal()">✨ 소환!</button>
+        </div>
+        <div class="controls">
+            <button class="action-btn undo-btn" onclick="undo()">↩️ 되돌리기</button>
+            <button class="action-btn clear-btn" onclick="clearCanvas()">🗑️ 비우기</button>
+        </div>
+    </div>
+
+    <div id="zoo-panel">
+        <canvas id="gameCanvas"></canvas>
+    </div>
+</div>
+
+<script>
+    const CANVAS_SIZE = 64; 
+    const paletteColors = [
+        '#000000', '#1D2B53', '#7E2553', '#008751', '#AB5236', '#5F574F', '#C2C3C7', '#FFF1E8',
+        '#FF004D', '#FFA300', '#FFEC27', '#00E436', '#29ADFF', '#83769C', '#FF77A8', '#FFCCAA'
+    ];
+    const editorCanvas = document.getElementById('editorCanvas');
+    const ctxEditor = editorCanvas.getContext('2d', { willReadFrequently: true });
+    
+    let selectedColor = paletteColors[0];
+    let isDrawing = false;
+    let currentTool = 'pencil';
+    let brushSize = 1;
+    let historyStack = [];
+    const MAX_HISTORY = 20;
+
+    function updateBrushLabel(val) { brushSize = parseInt(val); document.getElementById('brushSizeLabel').innerText = val + 'px'; }
+    
+    function setTool(tool) {
+        currentTool = tool; 
+        document.querySelectorAll('.tool-btn').forEach(btn => btn.classList.remove('active'));
+        document.getElementById('btn-' + tool).classList.add('active');
+    }
+    
+    const paletteDiv = document.getElementById('palette');
+    paletteColors.forEach((color, index) => {
+        const btn = document.createElement('div');
+        btn.className = 'color-btn' + (index === 0 ? ' active' : '');
+        btn.style.backgroundColor = color;
+        btn.onclick = () => {
+            if(currentTool === 'eraser') setTool('pencil');
+            document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active'); 
+            selectedColor = color;
+        };
+        paletteDiv.appendChild(btn);
+    });
+
+    function saveState() { historyStack.push(ctxEditor.getImageData(0, 0, CANVAS_SIZE, CANVAS_SIZE)); if (historyStack.length > MAX_HISTORY) historyStack.shift(); }
+    function undo() { if (historyStack.length > 0) ctxEditor.putImageData(historyStack.pop(), 0, 0); }
+    function clearCanvas() { saveState(); ctxEditor.clearRect(0, 0, CANVAS_SIZE, CANVAS_SIZE); }
+
+    function getPos(e) {
+        const rect = editorCanvas.getBoundingClientRect();
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        return { 
+            x: Math.floor((clientX - rect.left) * (CANVAS_SIZE / rect.width)), 
+            y: Math.floor((clientY - rect.top) * (CANVAS_SIZE / rect.height)) 
+        };
+    }
+
+    function drawPixel(e) {
+        if(e.cancelable) e.preventDefault();
+        const {x, y} = getPos(e);
+        const isRightClick = (e.buttons === 2);
+        const isEraser = (currentTool === 'eraser');
+
+        if (isEraser || isRightClick) {
+            ctxEditor.clearRect(x, y, brushSize, brushSize);
+        } else if (currentTool === 'pencil') {
+            ctxEditor.fillStyle = selectedColor; 
+            ctxEditor.fillRect(x, y, brushSize, brushSize); 
+        }
+    }
+
+    function floodFill(startX, startY, fillColor) {
+        const imageData = ctxEditor.getImageData(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+        const data = imageData.data;
+        const startPos = (startY * CANVAS_SIZE + startX) * 4;
+        const [sR, sG, sB, sA] = [data[startPos], data[startPos+1], data[startPos+2], data[startPos+3]];
+        const r = parseInt(fillColor.slice(1, 3), 16), g = parseInt(fillColor.slice(3, 5), 16), b = parseInt(fillColor.slice(5, 7), 16);
+        if (sR===r && sG===g && sB===b && sA===255) return;
+        const stack = [[startX, startY]];
+        while (stack.length) {
+            const [x, y] = stack.pop();
+            const pos = (y * CANVAS_SIZE + x) * 4;
+            if (x<0 || x>=CANVAS_SIZE || y<0 || y>=CANVAS_SIZE) continue;
+            if (data[pos]===sR && data[pos+1]===sG && data[pos+2]===sB && data[pos+3]===sA) {
+                data[pos]=r; data[pos+1]=g; data[pos+2]=b; data[pos+3]=255;
+                stack.push([x+1, y], [x-1, y], [x, y+1], [x, y-1]);
+            }
+        }
+        ctxEditor.putImageData(imageData, 0, 0);
+    }
+
+    function startDraw(e) {
+        saveState();
+        if (currentTool === 'bucket') {
+            const {x, y} = getPos(e);
+            floodFill(x, y, selectedColor);
+        } else {
+            isDrawing = true;
+            drawPixel(e);
+        }
+    }
+    
+    function moveDraw(e) { if (isDrawing && currentTool !== 'bucket') drawPixel(e); }
+    function endDraw() { isDrawing = false; }
+
+    editorCanvas.addEventListener('mousedown', startDraw);
+    editorCanvas.addEventListener('mousemove', moveDraw);
+    window.addEventListener('mouseup', endDraw);
+    editorCanvas.addEventListener('contextmenu', e => e.preventDefault());
+
+    editorCanvas.addEventListener('touchstart', startDraw, {passive: false});
+    editorCanvas.addEventListener('touchmove', moveDraw, {passive: false});
+    window.addEventListener('touchend', endDraw);
+
+
+    const zooCanvas = document.getElementById('gameCanvas');
+    const ctxZoo = zooCanvas.getContext('2d');
+    const animals = [];
+    
+    let foodTarget = null;
+    let grabbedAnimal = null;
+    let dragOffsetX, dragOffsetY;
+
+    function resizeZoo() {
+        zooCanvas.width = document.getElementById('zoo-panel').offsetWidth;
+        zooCanvas.height = document.getElementById('zoo-panel').offsetHeight;
+    }
+    window.addEventListener('resize', resizeZoo);
+    resizeZoo();
+
+    class Animal {
+        constructor(imgSrc, name) {
+            this.width = 80; this.height = 80;
+            this.x = Math.random() * (zooCanvas.width - this.width);
+            this.y = Math.random() * (zooCanvas.height - this.height);
+            this.image = new Image(); this.image.src = imgSrc;
+            this.name = name || '무명씨';
+            this.dx = (Math.random() - 0.5) * 2; this.dy = (Math.random() - 0.5) * 2;
+            this.speed = 1.5 + Math.random(); 
+            this.state = 'WALK'; 
+            this.jumpY = 0; 
+            this.interactionTimer = 0;
+            this.cooldown = 0; 
+        }
+        update() {
+            if (this.cooldown > 0) this.cooldown--;
+            if (this === grabbedAnimal) return;
+
+            if (this.state === 'JUMP') {
+                this.interactionTimer--;
+                this.jumpY = Math.abs(Math.sin(this.interactionTimer * 0.08)) * -15; 
+                if (this.interactionTimer <= 0) { this.state = 'WALK'; this.jumpY = 0; this.cooldown = 60; }
+                return; 
+            }
+            if (this.state === 'RUN') {
+                this.interactionTimer--;
+                this.jumpY = Math.abs(Math.sin(this.interactionTimer * 0.2)) * -10; 
+                this.x += this.dx * 2.5; this.y += this.dy * 2.5;
+                this.checkWalls();
+                if (this.interactionTimer <= 0) { this.state = 'WALK'; this.jumpY = 0; this.cooldown = 60; }
+                return;
+            }
+            if (foodTarget) {
+                const cx = this.x + this.width/2; const cy = this.y + this.height/2;
+                const dist = Math.sqrt((foodTarget.x-cx)**2 + (foodTarget.y-cy)**2);
+                if (dist > 10) { this.x += ((foodTarget.x-cx)/dist)*this.speed*1.5; this.y += ((foodTarget.y-cy)/dist)*this.speed*1.5; }
+                else { foodTarget.size -= 0.5; this.x += (Math.random()-0.5)*2; this.y += (Math.random()-0.5)*2; }
+            } else {
+                this.x += this.dx; this.y += this.dy; this.checkWalls();
+            }
+        }
+        checkWalls() {
+            if (this.x < 0 || this.x > zooCanvas.width - this.width) this.dx *= -1;
+            if (this.y < 0 || this.y > zooCanvas.height - this.height) this.dy *= -1;
+        }
+        draw() {
+            // 1. 그림자
+            ctxZoo.fillStyle = 'rgba(0,0,0,0.2)';
+            ctxZoo.beginPath();
+            ctxZoo.ellipse(this.x + this.width/2, this.y + this.height - 5, this.width/3, 8, 0, 0, Math.PI*2);
+            ctxZoo.fill();
+
+            // 2. 동물
+            ctxZoo.drawImage(this.image, this.x, this.y + this.jumpY, this.width, this.height);
+            
+            if (this.state === 'JUMP') ctxZoo.fillText('♪', this.x+this.width, this.y);
+            if (this.state === 'RUN') ctxZoo.fillText('!', this.x+this.width, this.y);
+            
+            // 3. 이름표 (머리 위로 이동)
+            ctxZoo.font = '12px sans-serif'; // 폰트 설정
+            const textMetrics = ctxZoo.measureText(this.name);
+            const textWidth = textMetrics.width;
+
+            // 배경 박스 (이름표 배경)
+            ctxZoo.fillStyle = 'rgba(0,0,0,0.6)'; // 반투명 검정
+            ctxZoo.fillRect(
+                this.x + this.width/2 - textWidth/2 - 6, // x
+                this.y + this.jumpY - 26,                // y (머리보다 26px 위)
+                textWidth + 12,                          // width (여백 포함)
+                20                                       // height
+            );
+
+            // 텍스트 (흰색)
+            ctxZoo.fillStyle = 'white';
+            ctxZoo.textAlign = 'center';
+            ctxZoo.fillText(this.name, this.x + this.width/2, this.y + this.jumpY - 12);
+        }
+        interact(other) {
+            if (this.cooldown > 0 || this.state !== 'WALK') return;
+            const action = Math.random() > 0.5 ? 'GREET' : 'FLEE';
+            if (action === 'GREET') { this.state = 'JUMP'; this.interactionTimer = 80; }
+            else { 
+                this.state = 'RUN'; this.interactionTimer = 60; 
+                this.dx = this.x > other.x ? Math.abs(this.dx) : -Math.abs(this.dx);
+                this.dy = this.y > other.y ? Math.abs(this.dy) : -Math.abs(this.dy);
+            }
+            this.cooldown = 100;
+        }
+        isClicked(mx, my) { return mx > this.x && mx < this.x + this.width && my > this.y && my < this.y + this.height; }
+    }
+
+    function handleGameInputStart(e) {
+        const rect = zooCanvas.getBoundingClientRect();
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        const mx = clientX - rect.left;
+        const my = clientY - rect.top;
+
+        let clicked = null;
+        for (let i = animals.length - 1; i >= 0; i--) {
+            if (animals[i].isClicked(mx, my)) { clicked = animals[i]; break; }
+        }
+
+        if (clicked) {
+            grabbedAnimal = clicked;
+            dragOffsetX = mx - grabbedAnimal.x;
+            dragOffsetY = my - grabbedAnimal.y;
+            animals.push(animals.splice(animals.indexOf(clicked), 1)[0]); 
+        } else {
+            foodTarget = { x: mx, y: my, size: 50, max: 50 };
+        }
+    }
+
+    function handleGameInputMove(e) {
+        if (grabbedAnimal) {
+            e.preventDefault();
+            const rect = zooCanvas.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            grabbedAnimal.x = clientX - rect.left - dragOffsetX;
+            grabbedAnimal.y = clientY - rect.top - dragOffsetY;
+        }
+    }
+
+    zooCanvas.addEventListener('mousedown', handleGameInputStart);
+    zooCanvas.addEventListener('mousemove', handleGameInputMove);
+    window.addEventListener('mouseup', () => grabbedAnimal = null);
+
+    zooCanvas.addEventListener('touchstart', handleGameInputStart, {passive: false});
+    zooCanvas.addEventListener('touchmove', handleGameInputMove, {passive: false});
+    window.addEventListener('touchend', () => grabbedAnimal = null);
+
+
+    function spawnAnimal() {
+        const dataURL = editorCanvas.toDataURL();
+        const name = document.getElementById('animalName').value;
+        animals.push(new Animal(dataURL, name));
+        document.getElementById('animalName').value = '';
+    }
+    function checkCollisions() {
+        for (let i = 0; i < animals.length; i++) {
+            for (let j = i + 1; j < animals.length; j++) {
+                const a = animals[i]; const b = animals[j];
+                const dx = (a.x+a.width/2)-(b.x+b.width/2); const dy = (a.y+a.height/2)-(b.y+b.height/2);
+                if (Math.sqrt(dx*dx+dy*dy) < a.width * 0.6) { a.interact(b); b.interact(a); }
+            }
+        }
+    }
+    function loop() {
+        ctxZoo.clearRect(0, 0, zooCanvas.width, zooCanvas.height);
+        if (foodTarget) {
+            if (foodTarget.size <= 0) foodTarget = null;
+            else {
+                ctxZoo.fillStyle = '#ff4444'; ctxZoo.beginPath(); ctxZoo.arc(foodTarget.x, foodTarget.y, foodTarget.size/4, 0, Math.PI*2); ctxZoo.fill();
+                ctxZoo.fillStyle = 'white'; ctxZoo.fillRect(foodTarget.x-20, foodTarget.y+20, 40, 4);
+                ctxZoo.fillStyle = '#ff4444'; ctxZoo.fillRect(foodTarget.x-20, foodTarget.y+20, 40*(foodTarget.size/foodTarget.max), 4);
+            }
+        }
+        checkCollisions();
+        animals.forEach(a => { a.update(); a.draw(); });
+        requestAnimationFrame(loop);
+    }
+    loop();
+
+</script>
+</body>
+</html>
