@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>픽셀 펫 하우스 완전판</title>
+    <title>픽셀 펫 하우스 V7 (밸런스 패치)</title>
     <style>
         body {
             margin: 0; background-color: #222; color: white;
@@ -14,14 +14,13 @@
 
         #main-container { position: relative; width: 100%; height: 100%; }
 
-        /* === 1. 게임 패널 (기본 화면) === */
+        /* === 1. 게임 패널 === */
         #game-panel {
             width: 100%; height: 100%;
             display: flex; flex-direction: column;
             background-color: #444;
         }
 
-        /* 상단 스탯 바 */
         #stats-bar {
             height: 50px; background: #222; display: flex; align-items: center; justify-content: space-between;
             padding: 0 10px; border-bottom: 2px solid #111; font-weight: bold; font-size: 12px;
@@ -33,30 +32,26 @@
         #hunger-bar::-webkit-progress-value { background: #ff9f43; }
         #clean-bar::-webkit-progress-value { background: #54a0ff; }
 
-        /* 방 (반응형) */
         #room-container {
             flex-grow: 1; position: relative; background-color: #c7ecee;
             display: flex; justify-content: center; align-items: center;
             overflow: hidden;
         }
         #roomCanvas {
-            /* 캔버스가 화면보다 크면 줄여서 보여줌 */
             max-width: 95%; max-height: 95%;
             background-color: #f7f1e3; border: 4px solid #84817a;
             box-shadow: 0 10px 20px rgba(0,0,0,0.3);
             cursor: grab; image-rendering: pixelated;
         }
 
-        /* 하단 행동 버튼 (잘리지 않게 고정) */
         #actions-bar {
-            height: 70px; min-height: 70px; /* 최소 높이 보장 */
+            height: 70px; min-height: 70px;
             background: #222; display: flex; align-items: center; justify-content: center;
             gap: 8px; border-top: 2px solid #111;
-            padding: 0 10px; box-sizing: border-box; /* 패딩 포함 크기 계산 */
+            padding: 0 10px; box-sizing: border-box;
         }
         .action-btn {
-            flex: 1; /* 버튼끼리 공간 균등 분할 */
-            padding: 12px 0; font-size: 13px; font-weight: bold;
+            flex: 1; padding: 12px 0; font-size: 13px; font-weight: bold;
             border: 2px solid #111; border-radius: 8px; cursor: pointer;
             background: #eee; color: #222; box-shadow: 0 3px 0 #111;
             white-space: nowrap; text-align: center;
@@ -66,13 +61,12 @@
         #btn-buy { background: #ffd700; } 
         #btn-draw-toggle { background: #a29bfe; }
 
-        /* === 2. 에디터 패널 (팝업 레이어) === */
+        /* === 2. 에디터 패널 === */
         #editor-panel {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             background-color: #333;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
-            z-index: 200; /* 게임 화면 위에 뜸 */
-            display: none; /* 기본적으로 숨김 */
+            z-index: 200; display: none;
         }
         #editor-panel.active { display: flex; }
 
@@ -81,11 +75,9 @@
         #editorCanvas {
             background-color: white; border: 4px solid #000; cursor: crosshair; image-rendering: pixelated;
             background-image: linear-gradient(45deg, #eee 25%, transparent 25%), linear-gradient(-45deg, #eee 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #eee 75%), linear-gradient(-45deg, transparent 75%, #eee 75%); background-size: 10px 10px;
-            /* 에디터 캔버스 크기 고정 */
             width: 300px !important; height: 300px !important;
         }
 
-        /* 툴바 (붓 크기 조절 포함) */
         .toolbar { 
             display: flex; gap: 5px; margin: 10px 0; background: #222; padding: 5px; border-radius: 8px; 
             flex-wrap: wrap; justify-content: center; width: 90%; align-items: center;
@@ -145,26 +137,20 @@
 
     <div id="editor-panel">
         <h2 id="editor-title">🎨 펫 그리기</h2>
-        
         <div class="toolbar">
             <button class="tool-btn active" id="btn-pencil" onclick="setTool('pencil')">✏️</button>
             <button class="tool-btn" id="btn-eraser" onclick="setTool('eraser')">🧽</button>
             <button class="tool-btn" id="btn-bucket" onclick="setTool('bucket')">🪣</button>
-            
             <div class="brush-control">
                 <span>크기</span>
                 <input type="range" id="brushSize" min="1" max="4" value="1" oninput="updateBrushLabel(this.value)">
                 <span id="brushSizeLabel">1px</span>
             </div>
-
             <button class="tool-btn" onclick="undo()">↩️</button>
             <button class="tool-btn" onclick="clearCanvas()">🗑️</button>
         </div>
-
         <canvas id="editorCanvas" width="64" height="64"></canvas>
-        
         <div id="palette"></div>
-        
         <div class="editor-controls">
             <button class="action-btn" id="btn-save-pet" onclick="savePet()" style="background:#ffd700;">완료</button>
             <button class="action-btn" id="btn-save-furniture" onclick="saveFurniture()" style="display:none; background:#c7ecee;">가구 완성</button>
@@ -181,12 +167,11 @@
         <div class="manual-item">🎨 <strong>수정:</strong> [펫 수정] 버튼으로 언제든 모습 변경 가능.</div>
         <button id="btn-close-help" onclick="toggleHelp()">닫기</button>
     </div>
-
 </div>
 
 <script>
     // ==========================================
-    //  전역 변수
+    //  전역 변수 (V7: 밸런스 패치)
     // ==========================================
     let gameState = {
         pet: null,
@@ -195,25 +180,25 @@
         furniture: []
     };
 
-    // 로컬스토리지 로드 (V6 버전 사용)
-    const savedData = localStorage.getItem('pixelPetFinal');
+    // V7 데이터 로드
+    const savedData = localStorage.getItem('pixelPetV7');
     if (savedData) {
         gameState = JSON.parse(savedData);
         const now = Date.now();
         const elapsedSecs = (now - gameState.stats.lastUpdated) / 1000;
-        gameState.stats.hunger = Math.max(0, gameState.stats.hunger - elapsedSecs * 0.1);
-        gameState.stats.cleanliness = Math.max(0, gameState.stats.cleanliness - elapsedSecs * 0.05);
+        // [수정] 오프라인 감소 속도도 매우 느리게 조정
+        gameState.stats.hunger = Math.max(0, gameState.stats.hunger - elapsedSecs * 0.02);
+        gameState.stats.cleanliness = Math.max(0, gameState.stats.cleanliness - elapsedSecs * 0.01);
         gameState.stats.lastUpdated = now;
         if(gameState.pet) { gameState.pet.state = 'IDLE'; gameState.pet.stateTimer = 0; }
     }
 
     let isFurnitureMode = false;
     let grabbedObject = null, grabbedType = null, dragOffset = {x:0, y:0}, spawnedFood = null;
-    // 욕조 위치 (캔버스 600x600 기준 우측 하단)
     const bathtub = { x: 450, y: 480, width: 120, height: 80 };
 
     // ==========================================
-    //  1. 에디터 엔진 (붓 크기 조절 포함)
+    //  1. 에디터 엔진
     // ==========================================
     const CANVAS_SIZE = 64;
     const paletteColors = ['#000000', '#1D2B53', '#7E2553', '#008751', '#AB5236', '#5F574F', '#C2C3C7', '#FFF1E8', '#FF004D', '#FFA300', '#FFEC27', '#00E436', '#29ADFF', '#83769C', '#FF77A8', '#FFCCAA'];
@@ -229,65 +214,37 @@
     const paletteDiv = document.getElementById('palette');
     paletteColors.forEach((color,i)=>{ const btn=document.createElement('div'); btn.className='color-btn'+(i===0?' active':''); btn.style.backgroundColor=color; btn.onclick=()=>{if(currentTool==='eraser')setTool('pencil');document.querySelectorAll('.color-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');selectedColor=color;}; paletteDiv.appendChild(btn); });
     function clearCanvas() { saveState(); ctxEditor.clearRect(0,0,CANVAS_SIZE,CANVAS_SIZE); }
-    
-    function getPos(e) { 
-        const r=editorCanvas.getBoundingClientRect(); 
-        const cx=e.touches?e.touches[0].clientX:e.clientX; const cy=e.touches?e.touches[0].clientY:e.clientY; 
-        return {x:Math.floor((cx-r.left)*(CANVAS_SIZE/r.width)), y:Math.floor((cy-r.top)*(CANVAS_SIZE/r.height))}; 
-    }
-    
-    function drawPixel(e) { 
-        if(e.cancelable)e.preventDefault(); 
-        const {x,y}=getPos(e); 
-        if(currentTool==='eraser'||e.buttons===2) ctxEditor.clearRect(x, y, brushSize, brushSize); 
-        else if(currentTool==='pencil'){ ctxEditor.fillStyle=selectedColor; ctxEditor.fillRect(x, y, brushSize, brushSize); } 
-    }
-    
+    function getPos(e) { const r=editorCanvas.getBoundingClientRect(); const cx=e.touches?e.touches[0].clientX:e.clientX; const cy=e.touches?e.touches[0].clientY:e.clientY; return {x:Math.floor((cx-r.left)*(CANVAS_SIZE/r.width)), y:Math.floor((cy-r.top)*(CANVAS_SIZE/r.height))}; }
+    function drawPixel(e) { if(e.cancelable)e.preventDefault(); const {x,y}=getPos(e); if(currentTool==='eraser'||e.buttons===2) ctxEditor.clearRect(x, y, brushSize, brushSize); else if(currentTool==='pencil'){ ctxEditor.fillStyle=selectedColor; ctxEditor.fillRect(x, y, brushSize, brushSize); } }
     function floodFill(sx,sy,fc){ const id=ctxEditor.getImageData(0,0,CANVAS_SIZE,CANVAS_SIZE),d=id.data,sp=(sy*CANVAS_SIZE+sx)*4,[sr,sg,sb,sa]=[d[sp],d[sp+1],d[sp+2],d[sp+3]]; const r=parseInt(fc.slice(1,3),16),g=parseInt(fc.slice(3,5),16),b=parseInt(fc.slice(5,7),16); if(sr===r&&sg===g&&sb===b&&sa===255)return; const st=[[sx,sy]]; while(st.length){const [x,y]=st.pop(),p=(y*CANVAS_SIZE+x)*4; if(x<0||x>=CANVAS_SIZE||y<0||y>=CANVAS_SIZE)continue; if(d[p]===sr&&d[p+1]===sg&&d[p+2]===sb&&d[p+3]===sa){d[p]=r;d[p+1]=g;d[p+2]=b;d[p+3]=255; st.push([x+1,y],[x-1,y],[x,y+1],[x,y-1]);}} ctxEditor.putImageData(id,0,0); }
     function startDraw(e) { saveState(); if(currentTool==='bucket')floodFill(getPos(e).x,getPos(e).y,selectedColor); else{isDrawing=true;drawPixel(e);} }
-    
     editorCanvas.addEventListener('mousedown', startDraw); editorCanvas.addEventListener('mousemove', e=>{if(isDrawing)drawPixel(e)}); window.addEventListener('mouseup', ()=>isDrawing=false); editorCanvas.addEventListener('contextmenu', e=>e.preventDefault());
     editorCanvas.addEventListener('touchstart', startDraw, {passive:false}); editorCanvas.addEventListener('touchmove', e=>{if(isDrawing)drawPixel(e)}, {passive:false}); window.addEventListener('touchend', ()=>isDrawing=false);
 
     // ==========================================
-    //  2. 펫 AI & 상호작용
+    //  2. 펫 AI & 상호작용 (속도 조절)
     // ==========================================
     const roomCanvas = document.getElementById('roomCanvas');
     const ctxRoom = roomCanvas.getContext('2d');
 
-    // 화면 전환 함수
     function openEditor(mode) {
         document.getElementById('editor-panel').classList.add('active');
         if (mode === 'FURNITURE') {
-            isFurnitureMode = true;
-            document.getElementById('editor-title').innerText = '🪑 가구 그리기';
-            document.getElementById('btn-save-pet').style.display = 'none';
-            document.getElementById('btn-save-furniture').style.display = 'inline-block';
+            isFurnitureMode = true; document.getElementById('editor-title').innerText = '🪑 가구 그리기';
+            document.getElementById('btn-save-pet').style.display = 'none'; document.getElementById('btn-save-furniture').style.display = 'inline-block';
         } else {
-            isFurnitureMode = false;
-            document.getElementById('editor-title').innerText = '🎨 펫 수정/생성';
-            document.getElementById('btn-save-pet').style.display = 'inline-block';
-            document.getElementById('btn-save-furniture').style.display = 'none';
+            isFurnitureMode = false; document.getElementById('editor-title').innerText = '🎨 펫 수정/생성';
+            document.getElementById('btn-save-pet').style.display = 'inline-block'; document.getElementById('btn-save-furniture').style.display = 'none';
         }
         clearCanvas();
     }
-
-    function closeEditor() {
-        document.getElementById('editor-panel').classList.remove('active');
-    }
+    function closeEditor() { document.getElementById('editor-panel').classList.remove('active'); }
 
     function savePet() {
         const dataURL = editorCanvas.toDataURL();
-        if (gameState.pet) {
-            // 이미 있으면 외형만 변경
-            gameState.pet.imageSrc = dataURL;
-            gameState.pet.imgObj.src = dataURL;
-        } else {
-            // 신규 생성
-            gameState.pet = {
-                imageSrc: dataURL, x: 250, y: 150, width: 120, height: 120, imgObj: new Image(),
-                state: 'IDLE', stateTimer: 100, targetX: 0, targetY: 0, isHeartActive: false, heartTimer: 0 
-            };
+        if (gameState.pet) { gameState.pet.imageSrc = dataURL; gameState.pet.imgObj.src = dataURL; }
+        else {
+            gameState.pet = { imageSrc: dataURL, x: 250, y: 150, width: 120, height: 120, imgObj: new Image(), state: 'IDLE', stateTimer: 100, targetX: 0, targetY: 0, isHeartActive: false, heartTimer: 0 };
             gameState.pet.imgObj.src = dataURL;
         }
         closeEditor(); saveGame();
@@ -296,21 +253,28 @@
     function updatePetAI() {
         const p = gameState.pet;
         if (!p || grabbedObject === p) return;
-        if (!p.isHeartActive && Math.random() < 0.002) { p.isHeartActive = true; p.heartTimer = 300; }
+
+        // [수정] 하트 발생 확률 대폭 감소 (0.002 -> 0.0005)
+        if (!p.isHeartActive && Math.random() < 0.0005) { p.isHeartActive = true; p.heartTimer = 400; }
         if (p.isHeartActive) { p.heartTimer--; if (p.heartTimer <= 0) p.isHeartActive = false; }
+
         p.stateTimer--;
         if (p.state === 'IDLE') {
             if (p.stateTimer <= 0) {
                 const rand = Math.random();
-                if (rand < 0.6) { p.state='WALK'; p.stateTimer=200; p.targetX=Math.random()*(roomCanvas.width-p.width); p.targetY=Math.random()*(roomCanvas.height-p.height); }
-                else if (rand < 0.9) { p.state='IDLE'; p.stateTimer=100; }
-                else { p.state='SLEEP'; p.stateTimer=400; }
+                // [수정] 행동 지속 시간 증가 (타이머 값 늘림)
+                if (rand < 0.6) { p.state='WALK'; p.stateTimer=300; p.targetX=Math.random()*(roomCanvas.width-p.width); p.targetY=Math.random()*(roomCanvas.height-p.height); }
+                else if (rand < 0.9) { p.state='IDLE'; p.stateTimer=200; }
+                else { p.state='SLEEP'; p.stateTimer=600; }
             }
         } else if (p.state === 'WALK') {
             const dx = p.targetX - p.x, dy = p.targetY - p.y;
             const dist = Math.sqrt(dx*dx + dy*dy);
             if (dist < 5 || p.stateTimer <= 0) p.state = 'IDLE';
-            else { let speed = 2 * ((gameState.stats.hunger+50)/150); p.x += (dx/dist)*speed; p.y += (dy/dist)*speed; }
+            else { 
+                let speed = 1.5 * ((gameState.stats.hunger+50)/150); // 이동 속도도 약간 낮춤
+                p.x += (dx/dist)*speed; p.y += (dy/dist)*speed; 
+            }
         } else if (p.state === 'SLEEP') {
             if (p.stateTimer <= 0) p.state = 'IDLE';
         } else if (p.state === 'WASHING') {
@@ -325,19 +289,14 @@
     //  3. 입력 및 로직
     // ==========================================
     function spawnFood() { if(spawnedFood) return; spawnedFood = { x: 50, y: 450, width: 60, height: 60, emoji: '🍖' }; }
-
     function getGamePos(e) {
         const r = roomCanvas.getBoundingClientRect();
-        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-        const scaleX = roomCanvas.width / r.width;
-        const scaleY = roomCanvas.height / r.height;
-        return { x: (clientX - r.left) * scaleX, y: (clientY - r.top) * scaleY };
+        const cx = e.touches ? e.touches[0].clientX : e.clientX; const cy = e.touches ? e.touches[0].clientY : e.clientY;
+        const scaleX = roomCanvas.width / r.width; const scaleY = roomCanvas.height / r.height;
+        return { x: (cx - r.left) * scaleX, y: (cy - r.top) * scaleY };
     }
-
     function handleInput(e) {
         const {x: mx, y: my} = getGamePos(e);
-
         if (e.type === 'mousedown' || e.type === 'touchstart') {
             if(e.cancelable) e.preventDefault();
             if (spawnedFood && isHit(mx, my, spawnedFood)) { grabbedObject = spawnedFood; grabbedType = 'FOOD'; dragOffset = {x: mx - spawnedFood.x, y: my - spawnedFood.y}; return; }
@@ -358,16 +317,14 @@
                     else { statusEffect('배불러요!'); }
                 }
                 if (grabbedType === 'PET' && checkCollision(grabbedObject, bathtub)) {
-                    gameState.pet.state = 'WASHING'; gameState.pet.stateTimer = 120; gameState.pet.x = bathtub.x + 20; gameState.pet.y = bathtub.y - 20;
+                    gameState.pet.state = 'WASHING'; gameState.pet.stateTimer = 180; gameState.pet.x = bathtub.x + 20; gameState.pet.y = bathtub.y - 20;
                 } else if (grabbedType === 'PET') { gameState.pet.state = 'IDLE'; }
                 grabbedObject = null; grabbedType = null; saveGame();
             }
         }
     }
-
     function isHit(mx, my, obj) { return mx > obj.x && mx < obj.x + obj.width && my > obj.y && my < obj.y + obj.height; }
     function checkCollision(obj1, obj2) { return obj1.x < obj2.x + obj2.width && obj1.x + obj1.width > obj2.x && obj1.y < obj2.y + obj2.height && obj1.y + obj1.height > obj2.y; }
-    
     roomCanvas.addEventListener('mousedown', handleInput); roomCanvas.addEventListener('mousemove', handleInput); window.addEventListener('mouseup', handleInput);
     roomCanvas.addEventListener('touchstart', handleInput, {passive:false}); roomCanvas.addEventListener('touchmove', handleInput, {passive:false}); window.addEventListener('touchend', handleInput);
 
@@ -378,14 +335,12 @@
     function saveFurniture(){ const d=editorCanvas.toDataURL(); gameState.furniture.push({imageSrc:d, x:200, y:200, width:100, height:100, imgObj:new Image()}); gameState.furniture[gameState.furniture.length-1].imgObj.src=d; alert("가구 생성!"); closeEditor(); saveGame(); }
     
     function statusEffect(msg) { const ef=document.createElement('div'); ef.innerText=msg; ef.style.position='absolute'; ef.style.left=(gameState.pet.x/600*100)+'%'; ef.style.top=(gameState.pet.y/600*100)+'%'; ef.style.color='#fff'; ef.style.fontWeight='bold'; ef.style.textShadow='2px 2px 0 #000'; ef.style.transition='1s'; document.getElementById('room-container').appendChild(ef); setTimeout(()=>{ef.style.transform='translateY(-50px)';ef.style.opacity=0;},50); setTimeout(()=>ef.remove(),1050); }
-    function saveGame(){ gameState.stats.lastUpdated=Date.now(); localStorage.setItem('pixelPetFinal',JSON.stringify(gameState)); updateUI(); }
+    function saveGame(){ gameState.stats.lastUpdated=Date.now(); localStorage.setItem('pixelPetV7',JSON.stringify(gameState)); updateUI(); }
     function updateUI(){ document.getElementById('hunger-bar').value=gameState.stats.hunger; document.getElementById('clean-bar').value=gameState.stats.cleanliness; document.getElementById('money-display').innerText=gameState.money; }
     function toggleHelp() { const m = document.getElementById('help-modal'); m.style.display = (m.style.display === 'block') ? 'none' : 'block'; }
 
     if (gameState.pet) { gameState.pet.imgObj = new Image(); gameState.pet.imgObj.src = gameState.pet.imageSrc; }
     gameState.furniture.forEach(f => { f.imgObj = new Image(); f.imgObj.src = f.imageSrc; });
-    
-    // 펫 없으면 에디터 자동 열기
     if (!gameState.pet) openEditor('PET');
 
     function drawBathtub(ctx, x, y, w, h) {
@@ -397,7 +352,12 @@
 
     function gameLoop() {
         ctxRoom.clearRect(0, 0, roomCanvas.width, roomCanvas.height);
-        if (gameState.pet) { gameState.stats.hunger = Math.max(0, gameState.stats.hunger - 0.01); gameState.stats.cleanliness = Math.max(0, gameState.stats.cleanliness - 0.005); updateUI(); updatePetAI(); }
+        if (gameState.pet) {
+            // [수정] 스탯 감소 속도 대폭 완화 (기존 0.01 -> 0.003)
+            gameState.stats.hunger = Math.max(0, gameState.stats.hunger - 0.003);
+            gameState.stats.cleanliness = Math.max(0, gameState.stats.cleanliness - 0.0015);
+            updateUI(); updatePetAI();
+        }
         drawBathtub(ctxRoom, bathtub.x, bathtub.y, bathtub.width, bathtub.height);
         gameState.furniture.forEach(f => ctxRoom.drawImage(f.imgObj, f.x, f.y, f.width, f.height));
         if (gameState.pet) {
@@ -405,11 +365,27 @@
             if (p.state !== 'DRAGGED' && p.state !== 'WASHING') { ctxRoom.fillStyle = 'rgba(0,0,0,0.2)'; ctxRoom.beginPath(); ctxRoom.ellipse(p.x + p.width/2, p.y + p.height-5, p.width/3, 8, 0, 0, Math.PI*2); ctxRoom.fill(); }
             if (p.state === 'WASHING') { const shake = Math.sin(Date.now() / 100) * 3; ctxRoom.drawImage(p.imgObj, p.x + shake, p.y + 10, p.width, p.height); if(Math.random() < 0.1) { ctxRoom.fillStyle = 'white'; ctxRoom.beginPath(); ctxRoom.arc(p.x + Math.random()*p.width, p.y + Math.random()*p.height, Math.random()*4, 0, Math.PI*2); ctxRoom.fill(); } } 
             else { ctxRoom.drawImage(p.imgObj, p.x, p.y, p.width, p.height); }
-            ctxRoom.font = "24px serif";
-            if (p.isHeartActive) ctxRoom.fillText('❤️', p.x + p.width/2 - 10, p.y - 10);
-            else if (p.state === 'SLEEP') ctxRoom.fillText('💤', p.x + p.width, p.y);
-            else if (gameState.stats.hunger < 30) ctxRoom.fillText('🍖', p.x + p.width, p.y);
-            else if (gameState.stats.cleanliness < 30) ctxRoom.fillText('💩', p.x + p.width, p.y);
+            
+            // [수정] 아이콘 렌더링 개선 (크게, 선명하게)
+            ctxRoom.font = "bold 32px sans-serif";
+            ctxRoom.lineWidth = 3; ctxRoom.strokeStyle = "black"; ctxRoom.fillStyle = "white";
+            
+            if (p.isHeartActive) {
+                const txt = '❤️'; const tx = p.x + p.width/2 - 15; const ty = p.y - 15;
+                ctxRoom.fillText(txt, tx, ty);
+            }
+            else if (p.state === 'SLEEP') {
+                const txt = '💤'; const tx = p.x + p.width; const ty = p.y;
+                ctxRoom.strokeText(txt, tx, ty); ctxRoom.fillText(txt, tx, ty);
+            }
+            else if (gameState.stats.hunger < 30) {
+                const txt = '🍖'; const tx = p.x + p.width; const ty = p.y;
+                ctxRoom.strokeText(txt, tx, ty); ctxRoom.fillText(txt, tx, ty);
+            }
+            else if (gameState.stats.cleanliness < 30) {
+                const txt = '💩'; const tx = p.x + p.width; const ty = p.y;
+                ctxRoom.strokeText(txt, tx, ty); ctxRoom.fillText(txt, tx, ty);
+            }
         }
         if (spawnedFood) { ctxRoom.font = "60px serif"; ctxRoom.fillText(spawnedFood.emoji, spawnedFood.x, spawnedFood.y + 50); }
         requestAnimationFrame(gameLoop);
